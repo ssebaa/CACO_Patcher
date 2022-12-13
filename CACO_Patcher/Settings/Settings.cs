@@ -4,7 +4,6 @@ using System.Text;
 
 namespace CACO_Patcher.Settings {
     class Settings {
-        public bool IgnoreIdenticalToWinningOverride { get; set; } = false;
         public bool PatchIngestibles { get; set; } = true;
         public bool PatchBooks { get; set; } = true;
         public bool PatchRecipies { get; set; } = true;
