@@ -6,7 +6,17 @@ using Mutagen.Bethesda.Plugins.Records;
 namespace CACO_Patcher.Utilities {
     public static class LoadOrderUtilities {
         public static ISkyrimModGetter? getModByFileName(this ILoadOrder<IModListing<ISkyrimModGetter>> LoadOrder, string name) {
-            return LoadOrder[LoadOrder.Keys.Where(x => ((string)x.FileName).ToLower() == name.ToLower()).ToList().First()].Mod;
+            try {
+                return LoadOrder[LoadOrder.Keys.Where(x => ((string)x.FileName).ToLower() == name.ToLower()).ToList().First()].Mod;
+            } catch (InvalidOperationException e){
+                if (name.Equals(Program.GetBaseModName())) {
+                    Console.WriteLine("ESP not found: " + name + ". CACO, is not enabled.");
+                }
+                else {
+                    Console.WriteLine("ESP not found: " + name + ". This means you have missing masters.");
+                }
+                throw (e);
+            }
         }
         public static (List<String>, List<ISkyrimModGetter>) getModsFromMasterIncludingMaster(this ILoadOrder<IModListing<ISkyrimModGetter>> LoadOrder, String masterName, ISkyrimModGetter master) {
             List<ISkyrimModGetter> modsToPatch = new();
