@@ -54,7 +54,7 @@ namespace CACO_Patcher {
             //get CACO
             ISkyrimModGetter? CACO = state.LoadOrder.getModByFileName(_settings.Value.CacoBaseModName);
             if (CACO is null) {
-                System.Console.WriteLine("CACO not found and initial check did not see that- Please enable CACO and notify mod author that this happened, because it shouldn't.");
+                System.Console.WriteLine("CACO not found and initial check did not see that- Please enable CACO and notify the author of this patcher that this happened, because it shouldn't.");
                 throw new Exception();
             }
 
