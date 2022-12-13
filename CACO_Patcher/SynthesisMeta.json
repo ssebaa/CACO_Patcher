@@ -1,5 +1,5 @@
 {
-  "Nickname": "Complete_Alchemy_&_Cooking_Overhaul_Patcher",
+  "Nickname": "Complete Alchemy & Cooking Overhaul Patcher",
   "Visibility": "Visible",
   "OneLineDescription": "Merges CACO changes into the winning override.",
   "LongDescription": "- Forwards/merges (whichever makes sense for the record type) CACO's changes into Synthesis.esp. All modules can be disabled individually in settings.'",
