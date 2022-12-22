@@ -42,7 +42,7 @@ namespace CACO_Patcher {
             return _settings.Value.CacoBaseModName;
         }
         public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state) {
-            System.Console.WriteLine("Running version: 0.1");
+            System.Console.WriteLine("Running version: 0.2");
             List<ModKey> allmods = new List<ModKey>();
             foreach (var mod in state.LoadOrder) {
                 allmods.Add(mod.Key);
@@ -310,9 +310,6 @@ namespace CACO_Patcher {
                     //merge items
                     if (patchContainer.Items is null) {
                         patchContainer.Items = new();
-                    }
-                    if (container.EditorID is not null && container.EditorID.Equals("BeeHiveVacant")) {
-                        Console.WriteLine("Found it!");
                     }
                     patchContainer.Items.SetTo(MergeContainerEntryList(container.Items, baseRecord.Items, patchContainer.Items));
                     
