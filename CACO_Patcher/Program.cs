@@ -311,6 +311,9 @@ namespace CACO_Patcher {
                     if (patchContainer.Items is null) {
                         patchContainer.Items = new();
                     }
+                    if (container.EditorID is not null && container.EditorID.Equals("BeeHiveVacant")) {
+                        Console.WriteLine("Found it!");
+                    }
                     patchContainer.Items.SetTo(MergeContainerEntryList(container.Items, baseRecord.Items, patchContainer.Items));
                     
                     //patch object bounds, override if it's not the vanilla bounds

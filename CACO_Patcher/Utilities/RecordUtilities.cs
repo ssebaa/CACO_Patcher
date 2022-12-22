@@ -212,64 +212,93 @@ namespace CACO_Patcher.Utilities {
             }
             return patchRecords;
         }
+        private static Dictionary<FormKey, IContainerEntryGetter> createContainerItemDict(IReadOnlyList<IContainerEntryGetter> itemList) {
+            Dictionary<FormKey, IContainerEntryGetter> resultFormKeyDict = new();
+            foreach (var entry in itemList) {
+                if (resultFormKeyDict.TryGetValue(entry.Item.Item.FormKey, out var currentValue)) {
+                    System.Console.WriteLine("Warning: Duplicate item formkey found in container. This may be an indication of incorrectly merged containers. This patcher will merge them together.");
+                    ContainerEntry toAdd = entry.DeepCopy();
+                    toAdd.Item.Count += currentValue.Item.Count;
+                    resultFormKeyDict[entry.Item.Item.FormKey] = toAdd;
+                }
+                else {
+                    resultFormKeyDict.Add(entry.Item.Item.FormKey, entry);
+                }
+            }
+            return resultFormKeyDict;
+        }
         public static ExtendedList<ContainerEntry> MergeContainerEntryList(IReadOnlyList<IContainerEntryGetter>? toMerge, IReadOnlyList<IContainerEntryGetter>? baseRecords, ExtendedList<ContainerEntry> patchRecords) {
             if (toMerge is null) {
                 return patchRecords ?? new();
             }
             baseRecords ??= new ExtendedList<IContainerEntryGetter>();
             //add records that aren't in base or patch into patch
-            ExtendedList<ContainerEntry> patchRecordsCopy = new(patchRecords);
-            Dictionary<FormKey, IContainerEntryGetter> toMergeFormKeyCache = new();
-            Dictionary<FormKey, IContainerEntryGetter> baseRecordFormKeyCache = new();
-            Dictionary<FormKey, IContainerEntryGetter> patchRecordFormKeyCache = new();
-            foreach (var entry in toMerge) {
-                toMergeFormKeyCache.Add(entry.Item.Item.FormKey, entry);
-            }
-            foreach (var entry in baseRecords) {
-                baseRecordFormKeyCache.Add(entry.Item.Item.FormKey, entry);
-            }
-            foreach (var entry in patchRecords) {
-                patchRecordFormKeyCache.Add(entry.Item.Item.FormKey, entry);
-            }
-            foreach (var record in toMerge) {
-                if (!baseRecordFormKeyCache.TryGetValue(record.Item.Item.FormKey, out var baseRecord)) {
-                    patchRecordsCopy.Add(record.DeepCopy());
+            ExtendedList<ContainerEntry> result = new();
+            Dictionary<FormKey, IContainerEntryGetter> toMergeFormKeyCache = createContainerItemDict(toMerge);
+            Dictionary<FormKey, IContainerEntryGetter> baseRecordFormKeyCache = createContainerItemDict(baseRecords);
+            Dictionary<FormKey, IContainerEntryGetter> patchRecordFormKeyCache = createContainerItemDict(patchRecords);
+            //TODO: This needs to all be changed to use the FormKeyCaches to build a new list
+            foreach (var record in toMergeFormKeyCache.Values) {
+                bool inBase = baseRecordFormKeyCache.TryGetValue(record.Item.Item.FormKey, out var baseRecord);
+                bool inPatch = patchRecordFormKeyCache.TryGetValue(record.Item.Item.FormKey, out var patchRecord);
+                //if it is in base record, and patch removes it, skip
+                if (inBase && (!inPatch)) {
                     continue;
                 }
-                if (baseRecord.Item.Count == record.Item.Count) {
+                if (!inBase && inPatch) {
+                    result.Add(record.DeepCopy());
+                    patchRecordFormKeyCache.Remove(record.Item.Item.FormKey);
                     continue;
                 }
-                foreach (var patchRecord in patchRecordsCopy) {
-                    if (patchRecord.Item.Item.FormKey.Equals(record.Item.Item.FormKey)) {
-                        //merge counts
-                        int a = (patchRecord.Item.Count - baseRecord.Item.Count);
-                        int b = (record.Item.Count - baseRecord.Item.Count);
-                        if ((a ^ b) >= 0) {
-                            patchRecord.Item.Count = baseRecord.Item.Count + a + Math.Abs(a - b) / 2;
-                        }
-                        else {
-                            patchRecord.Item.Count = baseRecord.Item.Count + a + b;
-                        }
-                        break;
+                //if it is in patch, base, and merge, merge differences
+                if (inBase && inPatch) {
+                    if (baseRecord is null || patchRecord is null) {
+                        result.Add(record.DeepCopy());
+                        patchRecordFormKeyCache.Remove(record.Item.Item.FormKey);
+                        continue;
                     }
-                }
-            }
-            //remove records that toMerge removes
-            List<ContainerEntry> toRemove = new();
-            foreach (var record in baseRecords) {
-                if (!toMergeFormKeyCache.ContainsKey(record.Item.Item.FormKey)) {
-                    foreach (var patchRecord in patchRecords) {
-                        if (patchRecord.Item.Item.FormKey.Equals(record.Item.Item.FormKey)) {
-                            toRemove.Add(patchRecord);
-                            break;
-                        }
+                    //merge counts
+                    int a = (patchRecord.Item.Count - baseRecord.Item.Count);
+                    int b = (record.Item.Count - baseRecord.Item.Count);
+                    ContainerEntry toAdd = record.DeepCopy();
+                    //if diffs are the same, either works
+                    if (a == b) {
+                        toAdd.Item.Count = patchRecord.Item.Count;
                     }
+                    //if a is unchanged, take b
+                    else if (a == 0) {
+                        toAdd.Item.Count = record.Item.Count;
+                    }
+                    //if be is unchanged, take a
+                    else if (b == 0) {
+                        toAdd.Item.Count = patchRecord.Item.Count;
+                    }
+                    //if they are the same sign, merge using result = base number + smaller diff + half of difference between diffs
+                    else if ((a ^ b) >= 0) {
+                        toAdd.Item.Count = baseRecord.Item.Count + Math.Min(a, b) + Math.Abs(a - b) / 2;
+                    }
+                    //if they are not the same sign, merge using result = a+b
+                    else {
+                        toAdd.Item.Count = baseRecord.Item.Count + a + b;
+                    }
+                    result.Add(toAdd);
+                    patchRecordFormKeyCache.Remove(record.Item.Item.FormKey);
+                    continue;
                 }
+                //otherwise, just add a copy.
+                result.Add(record.DeepCopy());
+                //remove to make adding simpler at the end
+                patchRecordFormKeyCache.Remove(record.Item.Item.FormKey);
             }
-            foreach (var record in toRemove) {
-                patchRecordsCopy.Remove(record);
+            foreach (var record in patchRecordFormKeyCache.Values) {
+                bool inBase = baseRecordFormKeyCache.ContainsKey(record.Item.Item.FormKey);
+                //if it is in base, skip because it should already be handled, or it was removed by toMerge
+                if (inBase) {
+                    continue;
+                }
+                result.Add(record.DeepCopy());
             }
-            return patchRecordsCopy;
+            return result;
         }
         /// <summary>
         /// Merges lists of IKeywordGetter.
